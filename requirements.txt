@@ -1,6 +1,17 @@
-google-genai>=0.2.0
+# Google AI 相关依赖
+google-genai==1.52.0
+google-auth>=2.40.0
+google-api-core>=2.25.0
+googleapis-common-protos>=1.70.0
+google-auth-httplib2>=0.2.0
+
+# 图像处理
 Pillow>=10.0.0
+
+# PyTorch (如果 ComfyUI 已安装则会跳过)
 torch
 torchvision
 numpy
+
+# 网络请求 (包含 SOCKS5 代理支持)
 httpx[socks]
