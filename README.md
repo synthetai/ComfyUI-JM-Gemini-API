@@ -59,6 +59,31 @@ pip install -r requirements.txt
 - torch
 - torchvision
 - numpy
+- httpx[socks] (for proxy support)
+
+## Proxy Configuration (Optional)
+
+If you need to use a proxy to access the Gemini API (common for users in China), you can set environment variables:
+
+### HTTP/HTTPS Proxy
+
+```bash
+export HTTP_PROXY="http://your-proxy:port"
+export HTTPS_PROXY="http://your-proxy:port"
+```
+
+### SOCKS5 Proxy
+
+```bash
+export HTTP_PROXY="socks5://your-proxy:port"
+export HTTPS_PROXY="socks5://your-proxy:port"
+```
+
+Or set them before starting ComfyUI:
+
+```bash
+HTTP_PROXY="socks5://127.0.0.1:1080" HTTPS_PROXY="socks5://127.0.0.1:1080" python main.py
+```
 
 ## Usage
 

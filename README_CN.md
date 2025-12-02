@@ -65,6 +65,66 @@ pip install -r requirements.txt
 - torch
 - torchvision
 - numpy
+- httpx[socks]（支持代理）
+
+## 代理配置（可选，中国用户推荐）
+
+由于网络原因，中国大陆用户访问Gemini API可能需要配置代理。本节点已支持HTTP/HTTPS/SOCKS5代理。
+
+### 方法一：设置环境变量（推荐）
+
+#### HTTP/HTTPS 代理
+
+```bash
+export HTTP_PROXY="http://代理地址:端口"
+export HTTPS_PROXY="http://代理地址:端口"
+```
+
+#### SOCKS5 代理（推荐）
+
+```bash
+export HTTP_PROXY="socks5://代理地址:端口"
+export HTTPS_PROXY="socks5://代理地址:端口"
+```
+
+例如，使用本地SOCKS5代理：
+
+```bash
+export HTTP_PROXY="socks5://127.0.0.1:1080"
+export HTTPS_PROXY="socks5://127.0.0.1:1080"
+```
+
+### 方法二：启动ComfyUI时设置
+
+**Linux/Mac:**
+
+```bash
+HTTP_PROXY="socks5://127.0.0.1:1080" HTTPS_PROXY="socks5://127.0.0.1:1080" python main.py
+```
+
+**Windows (PowerShell):**
+
+```powershell
+$env:HTTP_PROXY="socks5://127.0.0.1:1080"
+$env:HTTPS_PROXY="socks5://127.0.0.1:1080"
+python main.py
+```
+
+**Windows (CMD):**
+
+```cmd
+set HTTP_PROXY=socks5://127.0.0.1:1080
+set HTTPS_PROXY=socks5://127.0.0.1:1080
+python main.py
+```
+
+### 常用代理工具
+
+- **Clash**: 支持SOCKS5和HTTP代理
+- **V2Ray**: 支持SOCKS5代理
+- **Shadowsocks**: 支持SOCKS5代理
+
+配置好代理后，节点将自动通过代理访问Gemini API。
 
 ## 使用说明
 
