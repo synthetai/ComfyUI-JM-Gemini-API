@@ -103,7 +103,8 @@ class JMGeminiImageGenerator:
                 "gemini_api_key": ("STRING", {
                     "multiline": False,
                     "default": "",
-                    "placeholder": "Enter your Gemini API key"
+                    "placeholder": "Enter your Gemini API key",
+                    "password": True
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
