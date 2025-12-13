@@ -1,12 +1,13 @@
 # ComfyUI-JM-Gemini-API
 
-A custom node for ComfyUI that generates images using Google's Gemini API, supporting both text-to-image and image-to-image generation.
+Custom nodes for ComfyUI that generate images and videos using Google's Gemini API, supporting text-to-image, image-to-image, text-to-video, and image-to-video generation.
 
 English | [简体中文](README_CN.md)
 
 ## Features
 
-- Support for multiple Gemini models:
+### Image Generation
+- Support for multiple Gemini image models:
   - `gemini-3-pro-image-preview` (default, with 2K resolution)
   - `gemini-2.5-flash-image`
 - Text-to-image generation
@@ -17,20 +18,24 @@ English | [简体中文](README_CN.md)
 - Support up to 10 input images
 - Automatic image saving to ComfyUI output directory
 
-## Project Structure
+### Video Generation
+- Support for Gemini Veo video models:
+  - `veo-3.1-generate-preview` (default)
+  - `veo-3.1-fast-generate-preview`
+  - `veo-3.0-generate-001`
+  - `veo-3.0-fast-generate-001`
+- Text-to-video generation
+- Image-to-video generation (animate a single image)
+- First-last frame interpolation (Veo 3.1 only)
+- Negative prompt support
+- Configurable aspect ratios (16:9, 9:16)
+- Resolution control (720p, 1080p)
+- Duration control (4, 6, 8 seconds)
+- Automatic video saving to ComfyUI output directory
 
-```
-ComfyUI-JM-Gemini-API/
-├── __init__.py              # Main entry point for ComfyUI
-├── nodes/                   # Node implementations directory
-│   ├── __init__.py         # Nodes package initializer
-│   └── jm_gemini_node.py   # Gemini image generator node
-├── requirements.txt         # Python dependencies
-├── README.md               # Documentation
-└── .gitignore             # Git ignore rules
-```
-
-This modular structure makes it easy to add more Gemini-related nodes in the future. Simply add new node files to the `nodes/` directory and import them in `nodes/__init__.py`.
+**Important Limitations:**
+- **1080p resolution**: Only supports 8-second duration for Veo 3.1 models
+- **First-last frame interpolation**: Only available for Veo 3.1 models with 8-second duration
 
 ## Installation
 
@@ -203,7 +208,68 @@ Based on Google's Gemini API
 
 For issues and feature requests, please visit the [GitHub repository](https://github.com/yourusername/ComfyUI-JM-Gemini-API/issues)
 
+## Video Node Usage
+
+### Node: JM Gemini Video Generator
+
+#### Required Inputs:
+- **gemini_api_key**: Your Gemini API key (string, encrypted input)
+- **prompt**: Text prompt describing the video you want to generate (multiline text)
+
+#### Optional Inputs:
+- **negative_prompt**: Describe what you don't want in the video (multiline text)
+- **model**: Choose video model:
+  - `veo-3.1-generate-preview` (default, highest quality)
+  - `veo-3.1-fast-generate-preview` (faster generation)
+  - `veo-3.0-generate-001` (stable version)
+  - `veo-3.0-fast-generate-001` (stable + fast)
+- **aspect_ratio**: Video aspect ratio (16:9 or 9:16, default: 16:9)
+- **resolution**: Video resolution (720p or 1080p, default: 720p)
+- **duration**: Video duration in seconds (4, 6, or 8, default: 8)
+- **first_image**: First frame image (optional, for image-to-video or interpolation)
+- **last_image**: Last frame image (optional, only for Veo 3.1 interpolation)
+
+#### Output:
+- **video_path**: Path to the generated video file (STRING)
+
+### Video Generation Modes
+
+#### 1. Text-to-Video
+1. Add "JM Gemini Video Generator" node
+2. Enter API key and prompt
+3. Leave both image inputs empty
+4. Configure model and parameters
+5. Run workflow - video will be saved to output directory
+
+#### 2. Image-to-Video
+1. Add Load Image node and load your image
+2. Connect it to **first_image** input
+3. Enter prompt describing the motion/animation
+4. Run workflow
+
+#### 3. First-Last Frame Interpolation (Veo 3.1 only)
+1. Add two Load Image nodes
+2. Connect first image to **first_image** input
+3. Connect last image to **last_image** input
+4. Select a Veo 3.1 model (veo-3.1-generate-preview or veo-3.1-fast-generate-preview)
+5. **Set duration to 8 seconds** (required for interpolation mode)
+6. Enter prompt describing the transition
+7. Run workflow - the model will generate smooth interpolation between frames
+
+**Important Notes**:
+- Video generation can take several minutes. The node will poll the API every 10 seconds with a 20-minute timeout.
+- **1080p resolution** is only supported with **8-second duration** for Veo 3.1 models
+- **First-last frame interpolation** requires **Veo 3.1 models** and **8-second duration only**
+
 ## Changelog
+
+### Version 1.1.0
+- Added video generation support with JM Gemini Video Generator node
+- Support for Veo 3.1 and Veo 3.0 models
+- Text-to-video generation
+- Image-to-video animation
+- First-last frame interpolation (Veo 3.1 only)
+- Refactored code structure with separate node files and shared utilities
 
 ### Version 1.0.0
 - Initial release

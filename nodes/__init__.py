@@ -4,6 +4,21 @@ ComfyUI-JM-Gemini-API Nodes
 This package contains all Gemini API related nodes
 """
 
-from .jm_gemini_node import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .jm_gemini_image_node import NODE_CLASS_MAPPINGS as IMAGE_NODE_CLASS_MAPPINGS
+from .jm_gemini_image_node import NODE_DISPLAY_NAME_MAPPINGS as IMAGE_NODE_DISPLAY_NAME_MAPPINGS
+
+from .jm_gemini_video_node import NODE_CLASS_MAPPINGS as VIDEO_NODE_CLASS_MAPPINGS
+from .jm_gemini_video_node import NODE_DISPLAY_NAME_MAPPINGS as VIDEO_NODE_DISPLAY_NAME_MAPPINGS
+
+# 合并所有节点映射
+NODE_CLASS_MAPPINGS = {
+    **IMAGE_NODE_CLASS_MAPPINGS,
+    **VIDEO_NODE_CLASS_MAPPINGS
+}
+
+NODE_DISPLAY_NAME_MAPPINGS = {
+    **IMAGE_NODE_DISPLAY_NAME_MAPPINGS,
+    **VIDEO_NODE_DISPLAY_NAME_MAPPINGS
+}
 
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

@@ -1,5 +1,5 @@
 """
-ComfyUI-JM-Gemini-API
+ComfyUI-JM-Gemini-API Image Node
 A custom node for ComfyUI that generates images using Google's Gemini API
 """
 
@@ -8,12 +8,11 @@ import time
 import mimetypes
 import io
 import logging
-from typing import List, Dict, Tuple, Optional
-import torch
-import numpy as np
 from PIL import Image
 from google import genai
 from google.genai import types
+
+from .utils import tensor2pil, pil2tensor, get_output_dir
 
 # 设置日志
 logger = logging.getLogger(__name__)
@@ -57,40 +56,6 @@ ASPECT_RATIO_RESOLUTIONS = {
 DEFAULT_RESOLUTION = "2K"
 
 
-def tensor2pil(image_tensor):
-    """
-    将ComfyUI的tensor格式图像转换为PIL Image
-    ComfyUI图像格式: (batch, height, width, channels) 值范围0-1
-    """
-    # 确保是4D tensor
-    if len(image_tensor.shape) == 3:
-        image_tensor = image_tensor.unsqueeze(0)
-
-    # 转换为numpy并调整值范围到0-255
-    image_np = (image_tensor.squeeze(0).cpu().numpy() * 255).astype(np.uint8)
-
-    # 转换为PIL Image
-    return Image.fromarray(image_np)
-
-
-def pil2tensor(image):
-    """
-    将PIL Image转换为ComfyUI的tensor格式
-    返回格式: (batch, height, width, channels) 值范围0-1
-    """
-    # 确保是RGB模式
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
-
-    # 转换为numpy数组
-    image_np = np.array(image).astype(np.float32) / 255.0
-
-    # 转换为tensor并添加batch维度
-    image_tensor = torch.from_numpy(image_np).unsqueeze(0)
-
-    return image_tensor
-
-
 class JMGeminiImageGenerator:
     """
     ComfyUI custom node for generating images using Google Gemini API
@@ -125,6 +90,11 @@ class JMGeminiImageGenerator:
                 }),
             },
             "optional": {
+                "seed": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 0xffffffffffffffff
+                }),
                 "image1": ("IMAGE",),
                 "image2": ("IMAGE",),
                 "image3": ("IMAGE",),
@@ -144,11 +114,13 @@ class JMGeminiImageGenerator:
     CATEGORY = "JM-Gemini"
 
     def generate_image(self, gemini_api_key, prompt, model, aspect_ratio, resolution,
-                      image1=None, image2=None, image3=None, image4=None, image5=None,
+                      seed=0, image1=None, image2=None, image3=None, image4=None, image5=None,
                       image6=None, image7=None, image8=None, image9=None, image10=None):
         """
         主函数：调用Gemini API生成图像
         """
+        # seed参数仅用于ComfyUI重新执行，不传递给API
+
         # 验证API key
         if not gemini_api_key or not gemini_api_key.strip():
             raise ValueError("Gemini API key is required")
@@ -161,7 +133,7 @@ class JMGeminiImageGenerator:
                 input_images.append(img)
 
         # 设置输出目录
-        output_dir = self._get_output_dir()
+        output_dir = get_output_dir()
 
         try:
             # 根据是否有输入图像选择生成模式
@@ -194,27 +166,6 @@ class JMGeminiImageGenerator:
         except Exception as e:
             logger.exception(f"[JM-Gemini] Error generating image: {e}")
             raise RuntimeError(f"Failed to generate image: {str(e)}")
-
-    def _get_output_dir(self):
-        """
-        获取ComfyUI的output目录
-        """
-        # ComfyUI的output目录通常在ComfyUI/output
-        # 尝试多个可能的路径
-        possible_paths = [
-            os.path.join(os.getcwd(), "output"),
-            os.path.join(os.path.dirname(os.getcwd()), "output"),
-            os.path.join(os.path.dirname(os.path.dirname(os.getcwd())), "output"),
-        ]
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                return path
-
-        # 如果都不存在，创建当前目录下的output
-        output_dir = os.path.join(os.getcwd(), "output")
-        os.makedirs(output_dir, exist_ok=True)
-        return output_dir
 
     def _generate_text_to_image(self, api_key, prompt, model, aspect_ratio,
                                resolution, output_dir):

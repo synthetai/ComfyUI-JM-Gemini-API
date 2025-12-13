@@ -1,12 +1,13 @@
 # ComfyUI-JM-Gemini-API
 
-一个用于ComfyUI的自定义节点，使用Google Gemini API生成图像，支持文生图和图生图功能。
+用于ComfyUI的自定义节点，使用Google Gemini API生成图像和视频，支持文生图、图生图、文生视频和图生视频功能。
 
 [English](README.md) | 简体中文
 
 ## 功能特性
 
-- 支持多个Gemini模型：
+### 图像生成
+- 支持多个Gemini图像模型：
   - `gemini-3-pro-image-preview`（默认，支持1K/2K/4K分辨率）
   - `gemini-2.5-flash-image`
 - 文生图（Text-to-Image）
@@ -17,22 +18,24 @@
 - 最多支持10张图片输入
 - 自动保存图像到ComfyUI的output目录
 
-## 项目结构
+### 视频生成
+- 支持Gemini Veo视频模型：
+  - `veo-3.1-generate-preview`（默认）
+  - `veo-3.1-fast-generate-preview`
+  - `veo-3.0-generate-001`
+  - `veo-3.0-fast-generate-001`
+- 文生视频（Text-to-Video）
+- 图生视频（Image-to-Video）单图动画
+- 首尾帧插值（仅限Veo 3.1）
+- 支持负向提示词
+- 可配置的宽高比（16:9, 9:16）
+- 分辨率控制（720p, 1080p）
+- 时长控制（4、6、8秒）
+- 自动保存视频到ComfyUI的output目录
 
-```
-ComfyUI-JM-Gemini-API/
-├── __init__.py              # ComfyUI主入口
-├── nodes/                   # 节点实现目录
-│   ├── __init__.py         # 节点包初始化
-│   ├── jm_gemini_node.py   # Gemini图像生成节点
-│   └── README.md           # 节点开发指南
-├── requirements.txt         # Python依赖
-├── README.md               # 英文文档
-├── README_CN.md            # 中文文档（本文件）
-└── .gitignore             # Git忽略规则
-```
-
-这种模块化结构使得未来添加更多Gemini相关节点变得简单。只需在`nodes/`目录下添加新的节点文件，然后在`nodes/__init__.py`中导入即可。
+**重要限制说明：**
+- **1080p分辨率**：Veo 3.1 模型的1080p分辨率仅支持8秒时长
+- **首尾帧插值**：仅支持Veo 3.1模型，且时长只能为8秒
 
 ## 安装说明
 
@@ -255,7 +258,68 @@ MIT License
 
 如遇问题或有功能建议，请访问[GitHub仓库](https://github.com/yourusername/ComfyUI-JM-Gemini-API/issues)提交Issue。
 
+## 视频节点使用说明
+
+### 节点：JM Gemini Video Generator（JM Gemini视频生成器）
+
+#### 必需输入参数：
+- **gemini_api_key**：您的Gemini API密钥（字符串，加密输入）
+- **prompt**：描述要生成视频的文本提示词（多行文本）
+
+#### 可选输入参数：
+- **negative_prompt**：描述视频中不应包含的内容（多行文本）
+- **model**：选择视频模型：
+  - `veo-3.1-generate-preview`（默认，最高质量）
+  - `veo-3.1-fast-generate-preview`（快速生成）
+  - `veo-3.0-generate-001`（稳定版本）
+  - `veo-3.0-fast-generate-001`（稳定+快速）
+- **aspect_ratio**：视频宽高比（16:9或9:16，默认：16:9）
+- **resolution**：视频分辨率（720p或1080p，默认：720p）
+- **duration**：视频时长（4、6或8秒，默认：8秒）
+- **first_image**：首帧图像（可选，用于图生视频或插值）
+- **last_image**：尾帧图像（可选，仅用于Veo 3.1插值）
+
+#### 输出：
+- **video_path**：生成的视频文件路径（STRING字符串）
+
+### 视频生成模式
+
+#### 1. 文生视频（Text-to-Video）
+1. 添加"JM Gemini Video Generator"节点
+2. 输入API密钥和提示词
+3. 保持两个图像输入为空
+4. 配置模型和参数
+5. 运行工作流 - 视频将保存到output目录
+
+#### 2. 图生视频（Image-to-Video）
+1. 添加Load Image节点并加载图片
+2. 将其连接到**first_image**输入
+3. 输入描述运动/动画的提示词
+4. 运行工作流
+
+#### 3. 首尾帧插值（仅限Veo 3.1）
+1. 添加两个Load Image节点
+2. 将第一张图片连接到**first_image**输入
+3. 将最后一张图片连接到**last_image**输入
+4. 选择Veo 3.1模型（veo-3.1-generate-preview或veo-3.1-fast-generate-preview）
+5. **设置时长为8秒**（首尾帧插值模式必需）
+6. 输入描述过渡的提示词
+7. 运行工作流 - 模型将生成两帧之间的平滑插值
+
+**重要说明**：
+- 视频生成可能需要几分钟时间。节点会每10秒轮询一次API状态，最多等待20分钟。
+- **1080p分辨率**仅支持**8秒时长**（Veo 3.1模型）
+- **首尾帧插值**功能仅支持**Veo 3.1模型**，且**时长只能为8秒**
+
 ## 更新日志
+
+### 版本 1.1.0
+- 新增视频生成功能，添加JM Gemini Video Generator节点
+- 支持Veo 3.1和Veo 3.0模型
+- 文生视频功能
+- 图生视频动画功能
+- 首尾帧插值功能（仅限Veo 3.1）
+- 重构代码结构，分离节点文件和共享工具函数
 
 ### 版本 1.0.0
 - 初始版本发布
