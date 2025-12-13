@@ -45,7 +45,7 @@
 
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/yourusername/ComfyUI-JM-Gemini-API.git
+git clone https://github.com/synthetai/ComfyUI-JM-Gemini-API.git
 ```
 
 ### 2. 安装依赖
