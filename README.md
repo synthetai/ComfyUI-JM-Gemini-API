@@ -42,7 +42,7 @@ English | [简体中文](README_CN.md)
 1. Clone or download this repository to your ComfyUI custom_nodes directory:
 
 ```bash
-cd ComfyUI/custom_nodes
+cd custom_nodes
 git clone https://github.com/synthetai/ComfyUI-JM-Gemini-API.git
 ```
 

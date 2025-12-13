@@ -44,7 +44,7 @@
 将本仓库克隆或下载到ComfyUI的custom_nodes目录：
 
 ```bash
-cd ComfyUI/custom_nodes
+cd custom_nodes
 git clone https://github.com/synthetai/ComfyUI-JM-Gemini-API.git
 ```
 
