@@ -37,6 +37,12 @@ English | [简体中文](README_CN.md)
 - **1080p resolution**: Only supports 8-second duration for Veo 3.1 models
 - **First-last frame interpolation**: Only available for Veo 3.1 models with 8-second duration
 
+### Watermark Removal
+- Automatically detects and removes Gemini watermarks from generated images
+- Supports both 48×48 and 96×96 watermark sizes
+- Uses reverse alpha blending algorithm for clean removal
+- Simple one-click operation - just pass the image through the node
+
 ## Installation
 
 1. Clone or download this repository to your ComfyUI custom_nodes directory:
@@ -261,7 +267,44 @@ For issues and feature requests, please visit the [GitHub repository](https://gi
 - **1080p resolution** is only supported with **8-second duration** for Veo 3.1 models
 - **First-last frame interpolation** requires **Veo 3.1 models** and **8-second duration only**
 
+## Watermark Remover Node Usage
+
+### Node: JM Gemini Watermark Remover
+
+This node removes the Gemini watermark that appears on generated images.
+
+#### Input:
+- **image**: The Gemini-generated image with watermark (IMAGE tensor)
+
+#### Output:
+- **image**: The same image with watermark removed (IMAGE tensor)
+
+#### Usage:
+
+1. Add "JM Gemini Watermark Remover" node to your workflow
+2. Connect the output from "JM Gemini Image Generator" (or any Load Image node with a Gemini image) to the image input
+3. Connect the output to Preview Image or Save Image node
+4. Run the workflow
+
+The node will:
+- Automatically detect the watermark size (48×48 or 96×96) based on image dimensions
+- Calculate the watermark position (bottom-right corner)
+- Remove the watermark using reverse alpha blending algorithm
+- Save the cleaned image to the ComfyUI output directory
+
+**How it works:**
+- Gemini adds watermarks to images larger than 512×512 pixels
+- Images larger than 1024×1024 use a 96×96 watermark
+- Smaller images use a 48×48 watermark
+- The node uses pre-calculated alpha maps from background captures to reverse the watermark blending
+
 ## Changelog
+
+### Version 1.2.0
+- Added JM Gemini Watermark Remover node
+- Automatically removes Gemini watermarks from generated images
+- Supports both 48×48 and 96×96 watermark sizes
+- Uses reverse alpha blending algorithm for clean removal
 
 ### Version 1.1.0
 - Added video generation support with JM Gemini Video Generator node
