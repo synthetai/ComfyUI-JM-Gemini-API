@@ -51,6 +51,11 @@ class JMGeminiReverseGenerator:
                 }),
             },
             "optional": {
+                "cookies_raw": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "【首次使用】粘贴完整 Cookie，自动保存到配置文件\n格式: __Secure-1PSID=xxx; __Secure-1PSIDTS=xxx; ...\n\n已配置后可留空，系统自动读取配置文件"
+                }),
                 "image1": ("IMAGE",),
                 "image2": ("IMAGE",),
                 "image3": ("IMAGE",),
@@ -61,11 +66,6 @@ class JMGeminiReverseGenerator:
                 "image8": ("IMAGE",),
                 "image9": ("IMAGE",),
                 "image10": ("IMAGE",),
-                "config_override": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "placeholder": "可选: JSON 格式覆盖配置 (留空则使用 config/gemini_cookies.json)"
-                }),
             }
         }
 
@@ -75,9 +75,9 @@ class JMGeminiReverseGenerator:
     CATEGORY = "JM-Gemini/Reverse"
 
     def generate_image(self, prompt, model, seed=0,
+                      cookies_raw="",
                       image1=None, image2=None, image3=None, image4=None, image5=None,
-                      image6=None, image7=None, image8=None, image9=None, image10=None,
-                      config_override=""):
+                      image6=None, image7=None, image8=None, image9=None, image10=None):
         """
         主生成函数
 
@@ -85,8 +85,8 @@ class JMGeminiReverseGenerator:
             prompt: 提示词
             model: 模型名称
             seed: 随机种子（仅用于 ComfyUI，不传给 Gemini）
+            cookies_raw: 完整的 Cookie 字符串（首次使用时填写）
             image1-image10: 可选的输入图片
-            config_override: JSON 格式的配置覆盖
 
         Returns:
             tuple: (IMAGE tensor,)
@@ -95,27 +95,64 @@ class JMGeminiReverseGenerator:
 
         # seed 参数仅用于 ComfyUI 重新执行，不传递给 API
 
-        # 1. 加载配置
-        try:
-            if config_override.strip():
-                logger.info("[JM-Gemini-Reverse] 使用自定义配置")
-                config = json.loads(config_override)
-            else:
-                logger.info("[JM-Gemini-Reverse] 从配置文件加载")
-                config = CookieConfig.load()
-        except json.JSONDecodeError as e:
-            raise ValueError(f"配置 JSON 格式错误: {e}")
+        # 1. 处理 Cookie 输入
+        if cookies_raw and cookies_raw.strip():
+            logger.info("[JM-Gemini-Reverse] 检测到新的 Cookie，开始自动解析...")
+            try:
+                # 自动解析 Cookie
+                parsed = CookieConfig.parse_cookies_and_fetch_tokens(cookies_raw.strip())
 
-        # 2. 验证配置
+                # 加载现有配置
+                config = CookieConfig.load()
+
+                # 更新字段
+                config["cookies_raw"] = cookies_raw.strip()
+                if parsed.get("secure_1psid"):
+                    config["secure_1psid"] = parsed["secure_1psid"]
+                    logger.info("[JM-Gemini-Reverse] ✓ 提取 secure_1psid")
+                if parsed.get("secure_1psidts"):
+                    config["secure_1psidts"] = parsed["secure_1psidts"]
+                    logger.info("[JM-Gemini-Reverse] ✓ 提取 secure_1psidts")
+                if parsed.get("snlm0e"):
+                    config["snlm0e"] = parsed["snlm0e"]
+                    logger.info("[JM-Gemini-Reverse] ✓ 获取 snlm0e")
+                if parsed.get("push_id"):
+                    config["push_id"] = parsed["push_id"]
+                    logger.info("[JM-Gemini-Reverse] ✓ 获取 push_id")
+
+                # 保存到配置文件
+                CookieConfig.save(config)
+                logger.info(f"[JM-Gemini-Reverse] ✓ 配置已保存到 {CookieConfig.DEFAULT_CONFIG_PATH}")
+
+            except Exception as e:
+                logger.error(f"[JM-Gemini-Reverse] Cookie 解析失败: {e}")
+                raise RuntimeError(
+                    f"Cookie 自动解析失败: {e}\n\n"
+                    f"请检查:\n"
+                    f"1. Cookie 格式是否正确（应包含 __Secure-1PSID）\n"
+                    f"2. 网络连接是否正常\n"
+                    f"3. Cookie 是否已过期"
+                )
+        else:
+            logger.info("[JM-Gemini-Reverse] 从配置文件加载")
+
+        # 2. 加载配置
+        try:
+            config = CookieConfig.load()
+        except Exception as e:
+            raise ValueError(f"加载配置失败: {e}")
+
+        # 3. 验证配置
         valid, msg = CookieConfig.validate(config)
         if not valid:
             raise ValueError(
                 f"配置无效: {msg}\n\n"
-                f"请编辑配置文件: {CookieConfig.DEFAULT_CONFIG_PATH}\n"
-                f"或在 config_override 参数中提供完整配置"
+                f"解决方法:\n"
+                f"1. 在节点的 cookies_raw 输入框中粘贴完整 Cookie\n"
+                f"2. 或手动编辑配置文件: {CookieConfig.DEFAULT_CONFIG_PATH}"
             )
 
-        # 3. 收集输入图片
+        # 4. 收集输入图片
         input_images = []
         for img in [image1, image2, image3, image4, image5,
                    image6, image7, image8, image9, image10]:
@@ -125,7 +162,7 @@ class JMGeminiReverseGenerator:
         if input_images:
             logger.info(f"[JM-Gemini-Reverse] 检测到 {len(input_images)} 张输入图片")
 
-        # 4. 创建客户端
+        # 5. 创建客户端
         try:
             client = GeminiClient(
                 secure_1psid=config["secure_1psid"],
@@ -139,7 +176,7 @@ class JMGeminiReverseGenerator:
             raise RuntimeError(f"创建 Gemini 客户端失败: {e}")
 
         try:
-            # 5. 准备图片数据（转换为 base64）
+            # 6. 准备图片数据（转换为 base64）
             images_data = []
             if input_images:
                 logger.info("[JM-Gemini-Reverse] 转换图片为 base64 格式")
@@ -155,7 +192,7 @@ class JMGeminiReverseGenerator:
                     })
                     logger.info(f"[JM-Gemini-Reverse] 图片 {i+1}/{len(input_images)} 转换完成")
 
-            # 6. 调用 Gemini
+            # 7. 调用 Gemini
             logger.info(f"[JM-Gemini-Reverse] 调用 Gemini API - 模型: {model}")
             response = client.chat(
                 message=prompt,
@@ -164,7 +201,7 @@ class JMGeminiReverseGenerator:
                 reset_context=True  # 每次都是新对话
             )
 
-            # 7. 解析响应文本，提取图片 URL
+            # 8. 解析响应文本，提取图片 URL
             reply_text = response.choices[0].message.content
             logger.info(f"[JM-Gemini-Reverse] 收到响应，长度: {len(reply_text)}")
 
@@ -186,7 +223,7 @@ class JMGeminiReverseGenerator:
 
             logger.info(f"[JM-Gemini-Reverse] 找到 {len(media_urls)} 个媒体文件")
 
-            # 8. 加载第一张生成的图片
+            # 9. 加载第一张生成的图片
             media_path = media_urls[0]  # /media/gen_xxxxx
             media_id = media_path.replace("/media/", "")
             logger.info(f"[JM-Gemini-Reverse] 媒体 ID: {media_id}")
@@ -213,11 +250,11 @@ class JMGeminiReverseGenerator:
                     f"3. 磁盘空间不足"
                 )
 
-            # 9. 读取图片
+            # 10. 读取图片
             logger.info(f"[JM-Gemini-Reverse] 加载图片: {found_file}")
             pil_image = Image.open(found_file)
 
-            # 10. 保存到 ComfyUI output 目录
+            # 11. 保存到 ComfyUI output 目录
             output_dir = get_output_dir()
             timestamp = int(time.time())
             model_prefix = model.replace(".", "").replace("-", "")

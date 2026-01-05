@@ -1,42 +1,62 @@
 {
   "_comment": "Gemini 逆向工程配置文件",
-  "_说明": "请按照以下步骤获取配置信息",
+  "_使用方法": "【推荐】方法1: 粘贴完整Cookie到cookies_raw | 方法2: 手动填写各字段",
+
+  "cookies_raw": "",
+  "_cookies_raw_说明": "【最简单】粘贴浏览器完整Cookie字符串，保存后系统自动解析所有字段！",
+  "_cookies_raw_示例": "__Secure-1PSID=xxx; __Secure-1PSIDTS=xxx; SAPISID=xxx; ...",
 
   "secure_1psid": "",
-  "_secure_1psid_说明": "从浏览器 Cookies 中复制 __Secure-1PSID 的值",
-
   "secure_1psidts": "",
-  "_secure_1psidts_说明": "从浏览器 Cookies 中复制 __Secure-1PSIDTS 的值（可选但推荐）",
-
   "snlm0e": "",
-  "_snlm0e_说明": "从 Network 请求中获取 SNlM0e 值，或在页面源码中搜索 'SNlM0e'",
-
   "push_id": "",
-  "_push_id_说明": "格式: feeds/xxxxx，从上传图片请求的请求头中获取",
 
   "model_ids": {
     "flash": "56fdd199312815e2",
     "pro": "e6fa609c3fa255c0",
     "thinking": "e051ce1aa80aa576"
   },
-  "_model_ids_说明": "如果模型切换不生效，需要从 Network 抓包更新这些 ID",
 
-  "_获取步骤": {
+  "_获取步骤_方法1_自动解析": {
     "1": "访问 https://gemini.google.com 并登录",
     "2": "按 F12 打开开发者工具",
-    "3": "切换到 Application 标签 -> Cookies -> https://gemini.google.com",
-    "4": "复制 __Secure-1PSID 和 __Secure-1PSIDTS 的值",
-    "5": "切换到 Network 标签，在 Gemini 中发送一条消息",
-    "6": "找到 StreamGenerate 请求，查看请求头中的 push-id",
-    "7": "按 Ctrl+U 查看页面源码，搜索 'SNlM0e'，复制引号内的值",
-    "8": "将获取的值填入上面对应的字段",
-    "9": "保存此文件后，在 ComfyUI 中使用节点"
+    "3": "切换到 Network 标签",
+    "4": "在 Gemini 中发送一条消息（任意内容）",
+    "5": "找到任意一个请求，点击查看",
+    "6": "在 Request Headers 中找到 Cookie 字段",
+    "7": "复制完整的 Cookie 内容（可能很长）",
+    "8": "粘贴到上面的 cookies_raw 字段",
+    "9": "保存此文件",
+    "10": "下次加载节点时，系统会自动解析并填充 secure_1psid、snlm0e、push_id 等字段"
+  },
+
+  "_获取步骤_方法2_手动填写": {
+    "1": "访问 https://gemini.google.com 并登录",
+    "2": "F12 -> Application -> Cookies -> https://gemini.google.com",
+    "3": "复制 __Secure-1PSID 和 __Secure-1PSIDTS 的值",
+    "4": "填入上面对应的字段",
+    "5": "F12 -> Network -> 发送消息 -> 找到 StreamGenerate 请求",
+    "6": "查看请求头中的 push-id 和 at（即 SNlM0e）",
+    "7": "或者 Ctrl+U 查看源码，搜索 'SNlM0e' 获取 Token",
+    "8": "填入上面对应的字段",
+    "9": "保存此文件"
   },
 
   "_注意事项": {
-    "Cookie过期": "Cookie 可能会过期，需要定期更新",
+    "自动解析": "使用 cookies_raw 最简单，系统会自动访问 Gemini 页面获取所需信息",
+    "Cookie过期": "Cookie 可能会过期，出现错误时重新粘贴即可",
     "隐私安全": "此文件包含敏感信息，请勿分享或提交到代码仓库",
     "多图支持": "节点支持最多 10 张输入图片（实验性功能）",
     "免费使用": "使用浏览器 Cookie 方式是免费的，但可能不如官方 API 稳定"
+  },
+
+  "_工作原理": {
+    "1": "系统检测到 cookies_raw 有内容",
+    "2": "自动从中提取 __Secure-1PSID 和 __Secure-1PSIDTS",
+    "3": "使用这些 Cookie 访问 Gemini 页面",
+    "4": "从页面 HTML 中自动提取 SNlM0e（AT Token）",
+    "5": "从页面 HTML 中自动提取 PUSH_ID",
+    "6": "更新配置文件，填充所有字段",
+    "7": "后续使用时直接读取已解析的字段"
   }
 }

@@ -1,12 +1,14 @@
 """
 Cookie 配置管理器
 用于加载和验证 Gemini Cookie 配置
+支持粘贴完整 Cookie 字符串自动解析
 """
 
 import json
-import os
+import re
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+import httpx
 
 
 class CookieConfig:
@@ -18,7 +20,7 @@ class CookieConfig:
     @classmethod
     def load(cls, config_path: Optional[Path] = None) -> Dict:
         """
-        加载配置文件
+        加载配置文件，支持自动解析完整 Cookie 字符串
 
         Args:
             config_path: 配置文件路径，默认为 config/gemini_cookies.json
@@ -31,23 +33,36 @@ class CookieConfig:
         if not path.exists():
             # 创建默认配置
             default_config = {
-                "_comment": "Gemini 逆向工程配置文件 - 获取教程: https://github.com/",
+                "_comment": "Gemini 逆向工程配置文件",
+                "_使用方法": "方法1: 粘贴完整Cookie到cookies_raw字段 | 方法2: 手动填写各字段",
+
+                "cookies_raw": "",
+                "_cookies_raw_说明": "【推荐】粘贴浏览器完整Cookie字符串，系统自动解析。粘贴后保存文件，下次加载会自动提取所需字段",
+
                 "secure_1psid": "",
                 "secure_1psidts": "",
                 "snlm0e": "",
                 "push_id": "",
+
                 "model_ids": {
                     "flash": "56fdd199312815e2",
                     "pro": "e6fa609c3fa255c0",
                     "thinking": "e051ce1aa80aa576"
                 },
-                "_获取步骤": {
+
+                "_获取步骤_方法1_自动": {
+                    "1": "访问 https://gemini.google.com 并登录",
+                    "2": "F12 -> Network -> 发送消息 -> 找到任意请求",
+                    "3": "复制 Request Headers 中的完整 Cookie 字符串",
+                    "4": "粘贴到上面的 cookies_raw 字段",
+                    "5": "保存文件，系统会自动解析并填充其他字段"
+                },
+
+                "_获取步骤_方法2_手动": {
                     "1": "访问 https://gemini.google.com 并登录",
                     "2": "F12 -> Application -> Cookies",
-                    "3": "复制 __Secure-1PSID 和 __Secure-1PSIDTS",
-                    "4": "F12 -> Network -> 发送消息",
-                    "5": "查找请求头中的 push-id (格式: feeds/xxxxx)",
-                    "6": "Ctrl+U 查看源码，搜索 SNlM0e，复制引号内的值"
+                    "3": "手动复制 __Secure-1PSID 和 __Secure-1PSIDTS",
+                    "4": "F12 -> Network -> 查找 push-id 和 SNlM0e"
                 }
             }
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -56,7 +71,32 @@ class CookieConfig:
             return default_config
 
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            config = json.load(f)
+
+        # 如果有 cookies_raw，自动解析
+        if config.get("cookies_raw") and config["cookies_raw"].strip():
+            print("[Cookie配置] 检测到 cookies_raw，开始自动解析...")
+            parsed = cls.parse_cookies_and_fetch_tokens(config["cookies_raw"])
+
+            # 更新配置
+            if parsed.get("secure_1psid"):
+                config["secure_1psid"] = parsed["secure_1psid"]
+            if parsed.get("secure_1psidts"):
+                config["secure_1psidts"] = parsed["secure_1psidts"]
+            if parsed.get("snlm0e"):
+                config["snlm0e"] = parsed["snlm0e"]
+            if parsed.get("push_id"):
+                config["push_id"] = parsed["push_id"]
+
+            # 保存更新后的配置
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                print(f"[Cookie配置] 自动解析成功，已更新配置文件")
+            except Exception as e:
+                print(f"[Cookie配置] 保存配置失败: {e}")
+
+        return config
 
     @classmethod
     def validate(cls, config: Dict) -> Tuple[bool, str]:
@@ -104,3 +144,133 @@ class CookieConfig:
 
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
+
+    @classmethod
+    def parse_cookies_string(cls, cookies_str: str) -> Dict[str, str]:
+        """
+        从完整 Cookie 字符串中提取各个字段
+
+        Args:
+            cookies_str: 完整的 Cookie 字符串
+
+        Returns:
+            Dict: 包含 secure_1psid, secure_1psidts 等字段的字典
+        """
+        result = {
+            "secure_1psid": "",
+            "secure_1psidts": "",
+        }
+
+        # 解析 Cookie 字符串
+        for item in cookies_str.split(";"):
+            item = item.strip()
+            if "=" in item:
+                key, value = item.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+
+                if key == "__Secure-1PSID":
+                    result["secure_1psid"] = value
+                elif key == "__Secure-1PSIDTS":
+                    result["secure_1psidts"] = value
+
+        return result
+
+    @classmethod
+    def fetch_tokens_from_page(cls, cookies_str: str) -> Dict[str, str]:
+        """
+        从 Gemini 页面自动获取 SNLM0E 和 PUSH_ID
+
+        Args:
+            cookies_str: 完整的 Cookie 字符串
+
+        Returns:
+            Dict: 包含 snlm0e 和 push_id 的字典
+        """
+        result = {"snlm0e": "", "push_id": ""}
+
+        try:
+            session = httpx.Client(
+                timeout=30.0,
+                follow_redirects=True,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                }
+            )
+
+            # 设置 cookies
+            for item in cookies_str.split(";"):
+                item = item.strip()
+                if "=" in item:
+                    key, value = item.split("=", 1)
+                    session.cookies.set(key.strip(), value.strip(), domain=".google.com")
+
+            print("[Cookie配置] 正在访问 Gemini 页面...")
+            resp = session.get("https://gemini.google.com")
+
+            if resp.status_code != 200:
+                print(f"[Cookie配置] 访问失败，状态码: {resp.status_code}")
+                return result
+
+            html = resp.text
+
+            # 获取 SNLM0E (AT Token)
+            snlm0e_patterns = [
+                r'"SNlM0e":"([^"]+)"',
+                r'SNlM0e["\s:]+["\']([^"\']+)["\']',
+                r'"at":"([^"]+)"',
+            ]
+            for pattern in snlm0e_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    result["snlm0e"] = match.group(1)
+                    print(f"[Cookie配置] 找到 SNLM0E: {result['snlm0e'][:20]}...")
+                    break
+
+            if not result["snlm0e"]:
+                print("[Cookie配置] 警告: 未找到 SNLM0E Token")
+
+            # 获取 PUSH_ID
+            push_id_patterns = [
+                r'"push[_-]?id["\s:]+["\'](feeds/[a-z0-9]+)["\']',
+                r'push[_-]?id["\s:=]+["\'](feeds/[a-z0-9]+)["\']',
+                r'feedName["\s:]+["\'](feeds/[a-z0-9]+)["\']',
+                r'(feeds/[a-z0-9]{14,})',
+            ]
+            for pattern in push_id_patterns:
+                matches = re.findall(pattern, html, re.IGNORECASE)
+                if matches:
+                    result["push_id"] = matches[0]
+                    print(f"[Cookie配置] 找到 PUSH_ID: {result['push_id']}")
+                    break
+
+            if not result["push_id"]:
+                print("[Cookie配置] 警告: 未找到 PUSH_ID，图片上传功能将不可用")
+
+            return result
+
+        except Exception as e:
+            print(f"[Cookie配置] 获取 Token 时出错: {e}")
+            return result
+
+    @classmethod
+    def parse_cookies_and_fetch_tokens(cls, cookies_str: str) -> Dict[str, str]:
+        """
+        完整解析流程：提取 Cookie 字段 + 自动获取 Token
+
+        Args:
+            cookies_str: 完整的 Cookie 字符串
+
+        Returns:
+            Dict: 包含所有字段的字典
+        """
+        # 步骤1: 从 Cookie 字符串中提取字段
+        result = cls.parse_cookies_string(cookies_str)
+
+        # 步骤2: 访问页面自动获取 Token
+        tokens = cls.fetch_tokens_from_page(cookies_str)
+        result.update(tokens)
+
+        return result
